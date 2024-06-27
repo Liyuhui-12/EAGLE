@@ -1,14 +1,16 @@
-<img src="figs/logo.png" alt="EAGLE" width="220" align="left"><div align="center"><h1>&nbsp;EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty</h1></div>
+<img src="figs/logo.png" alt="EAGLE" width="220" align="left"><div align="center"><h1>&nbsp;EAGLE</h1></div>
 
 <p align="center">
-| <a href="https://arxiv.org/pdf/2401.15077.pdf"><b>Paper</b></a> | <a href="https://sites.google.com/view/
+| <a href="https://arxiv.org/pdf/2401.15077.pdf"><b>Paper (EAGLE)</b></a> | 
+<a href="https://arxiv.org/pdf/2406.16858"><b>Paper (EAGLE-2)</b></a> |
+<a href="https://sites.google.com/view/
 eagle-llm"><b>Blog</b></a> |
 </p>
 
 
 <p align="center">
   <a href="">
-    <img src="https://img.shields.io/badge/Version-v1.1.0-orange.svg" alt="Version">
+    <img src="https://img.shields.io/badge/Version-v2.0.0-orange.svg" alt="Version">
   </a>
   <a href="https://opensource.org/licenses/Apache-2.0">
     <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License">
@@ -25,12 +27,10 @@ eagle-llm"><b>Blog</b></a> |
 ##
 
 <p align="center">
-  <img src="./figs/benchmark.png" alt="benchmark" width="790">
+  <img src="./figs/eagle2_t0.jpg" alt="benchmark" width="790">
 </p>
 
-EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) is a new baseline for fast decoding of Large Language Models (LLMs) with provable performance maintenance. This approach involves extrapolating the second-top-layer contextual feature vectors of LLMs, enabling a significant boost in generation efficiency. EAGLE is building upon the following First Principle:
-
-**The sequence of LLM feature vectors is compressible over time, making the prediction of subsequent feature vectors from previous ones easy.**
+EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) is a new baseline for fast decoding of Large Language Models (LLMs) with provable performance maintenance. This approach involves extrapolating the second-top-layer contextual feature vectors of LLMs, enabling a significant boost in generation efficiency. EAGLE-2 uses the confidence scores from the draft model to approximate acceptance rates, dynamically adjusting the draft tree structure, which further enhances performance.
 
 - EAGLE is:
 	- certified by the <a href="https://github.com/hemingkx/Spec-Bench/blob/main/Leaderboard.md"><b>third-party</b></a> evaluation as the **fastest** speculative method so far. 
@@ -42,13 +42,20 @@ EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) is a new b
   	- trainable (within 1-2 days) and testable on 8x RTX 3090 GPUs. So even the GPU poor can afford it.
 	- combinable with other parallelled techniques such as vLLM, DeepSpeed, Mamba, FlashAttention, quantization, and hardware optimization.
 
+- EAGLE-2 is:
+  - **4x** faster than vanilla decoding (13B).
+  - **1.4x** faster than EAGLE-1 (13B).
+
 <p align="center">
-  <img src="./figs/demosmall.gif" alt="demogif">
+  <img src="./figs/eagle2.gif" alt="demogif">
 </p>
 
-_Inference is conducted on RTX 3090 GPUs at fp16 precision using the Vicuna 33B model. For an enhanced viewing experience, the animation has been sped up fourfold._
+
+Using EAGLE-2, the inference speed on 2 RTX 3060 GPUs can be faster than vanilla autoregressive decoding on an A100 GPU.
 
 ## Update
+**2024.6.27**: EAGLE-2 is released.
+
 **2024.2.25**: EAGLE is certified by the <a href="https://github.com/hemingkx/Spec-Bench/blob/main/Leaderboard.md">third-party</a> evaluation as the fastest speculative method.
 
 **2024.1.17**: We now support [Mixtral-8x7B-Instruct](https://huggingface.co/mistralai/Mixtral-8x7B-Instruct-v0.1).
@@ -63,11 +70,13 @@ _Inference is conducted on RTX 3090 GPUs at fp16 precision using the Vicuna 33B 
 
 ## Todo
 - [x] Support non-greedy inference (provably maintaining text distribution).
-- [x] Support bs > 1.
-- [x] Support gpt-fast.
+- [x] Support bs > 1 (EAGLE-1).
+- [x] Support gpt-fast (EAGLE-1).
 - [x] Support more LLMs such as Mixtral 8x7B.
-- [ ] Support LLaMA-3.
+- [x] Support LLaMA-3.
+- [ ] Support Qwen-2.
 
+## For using EAGLE-1, please switch to the v1 branch.
 
 ## Contents
 
@@ -89,23 +98,18 @@ _Inference is conducted on RTX 3090 GPUs at fp16 precision using the Vicuna 33B 
 
 ## Setup & Installation
 
-### With pip 
-
-
-```bash
-pip install eagle-llm
-```
-
-### From the source
 
 ```bash
 git clone https://github.com/SafeAILab/EAGLE.git
 cd EAGLE
-pip install -e .
+pip install -r requirements.txt
 ```
 
 
 ## EAGLE Weights
+
+
+Compared to EAGLE, EAGLE-2 does not require additional training and uses the same weights.
 
 | Base Model  | EAGLE on Hugging Face  | \# EAGLE Parameters | Base Model  | EAGLE on Hugging Face  | \# EAGLE Parameters |
 |------|------|------|------|------|------|
@@ -113,7 +117,7 @@ pip install -e .
 | Vicuna-13B-v1.3 | [yuhuili/EAGLE-Vicuna-13B-v1.3](https://huggingface.co/yuhuili/EAGLE-Vicuna-13B-v1.3) | 0.37B | LLaMA2-Chat 13B | [yuhuili/EAGLE-llama2-chat-13B](https://huggingface.co/yuhuili/EAGLE-llama2-chat-13B) | 0.37B |
 | Vicuna-33B-v1.3 | [yuhuili/EAGLE-Vicuna-33B-v1.3](https://huggingface.co/yuhuili/EAGLE-Vicuna-33B-v1.3)| 0.56B | LLaMA2-Chat 70B| [yuhuili/EAGLE-llama2-chat-70B](https://huggingface.co/yuhuili/EAGLE-llama2-chat-70B)| 0.99B |
 | Mixtral-8x7B-Instruct-v0.1 | [yuhuili/EAGLE-mixtral-instruct-8x7B](https://huggingface.co/yuhuili/EAGLE-mixtral-instruct-8x7B)| 0.28B |
-
+| LLaMA3-Instruct 8B | [yuhuili/EAGLE-LLaMA3-Instruct-8B](https://huggingface.co/yuhuili/EAGLE-LLaMA3-Instruct-8B)| 0.25B | LLaMA3-Instruct 708B| [yuhuili/EAGLE-LLaMA3-Instruct-70B](https://huggingface.co/yuhuili/EAGLE-LLaMA3-Instruct-70B)| 0.99B |
 
 ## Inference
 The inference code we provide automatically allocates model weights (loading a model across multiple GPUs), allowing you to run models that exceed the memory of a single GPU.
@@ -123,8 +127,11 @@ We have provided a suggested web interface, which you can use by running the fol
 ```bash
 python -m eagle.application.webui --ea-model-path [path of EAGLE weight]\ 
 		--base-model-path [path of the original model]\
-		--model-type [vicuna or llama-2-chat]
+		--model-type [vicuna\llama2\llama3]\
+        --total-token [int]
 ```
+The *total-token* is the number of draft tokens. For smaller models and advanced GPUs, this value can be set larger. Adjusting according to the specific device and model can achieve better results.
+
 ### With Code
 You can use our provided "eagenerate" for speedup generation just like using 'generate' from Hugging Face. Here is an example.
 ```python
@@ -135,35 +142,24 @@ model = EaModel.from_pretrained(
     ea_model_path=EAGLE_model_path,
     torch_dtype=torch.float16,
     low_cpu_mem_usage=True,
-    device_map="auto"
+    device_map="auto",
+    total_token=xxx
 )
 model.eval()
-
 your_message="Hello"
-
-if use_llama_2_chat:
-    conv = get_conversation_template("llama-2-chat")  
-    sys_p = "You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information."
-    conv.system_message = sys_p
-    conv.append_message(conv.roles[0], your_message)
-    conv.append_message(conv.roles[1], None)
-    prompt = conv.get_prompt() + " "
-
-if use_vicuna:
-    conv = get_conversation_template("vicuna")
-    conv.append_message(conv.roles[0], your_message)
-    conv.append_message(conv.roles[1], None)
-    prompt = conv.get_prompt()
-
+conv = get_conversation_template("vicuna")
+conv.append_message(conv.roles[0], your_message)
+conv.append_message(conv.roles[1], None)
+prompt = conv.get_prompt()
 input_ids=model.tokenizer([prompt]).input_ids
 input_ids = torch.as_tensor(input_ids).cuda()
 output_ids=model.eagenerate(input_ids,temperature=0.5,max_new_tokens=512)
 output=model.tokenizer.decode(output_ids[0])
 ```
 
-**_Note: Vicuna and LLaMA2-Chat are both chat models. You need to use the correct chat template, otherwise it will cause abnormal output from the model and affect the performance of EAGLE._**
+**_Note: Vicuna, LLaMA2-Chat, and LLaMA3-Instruct are both chat models. You need to use the correct chat template, otherwise it will cause abnormal output from the model and affect the performance of EAGLE._**
 
-### Batch size > 1
+### Batch size > 1 (Currently, only EAGLE-1)
 
 Here is an example. Note that left padding is needed.
 ```python
@@ -208,6 +204,7 @@ print(output)
 # output_ids, new_token, idx=model.naivegenerate(input_s.input_ids,input_s.attention_mask,temperature=0.0,max_new_tokens=512,top_k=15,log=True)
 ```
 
+
 ## Train
 
 ### Generate Train Data
@@ -226,7 +223,7 @@ accelerate launch -m --mixed_precision=bf16 eagle.train.main --tmpdir [path of d
 
 If the original LLM structure differs from LLaMA and Mixtral, you can utilize EAGLE in two ways.
 
-#### 1. Using the generic modeling_eagle.py
+#### 1. Using the generic modeling_eagle.py (Currently, only EAGLE-1)
 
 This approach directly encapsulates the native Transformers LLM. Here is an example. **Note: transformers version should be higher than 4.36.**
 
@@ -273,7 +270,7 @@ python -m eagle.evaluation.gen_baseline_answer_vicuna\
 ```
 The above two commands will each generate a .jsonl file that records the generation results and wall time. Then, you can use evaluation/speed.py to calculate the ratio of speeds.
 
-## With gpt-fast
+## With gpt-fast (Currently, only EAGLE-1)
 
 GPT-Fast primarily accelerates generation through quantization and compilation, which we have integrated into EAGLE. Here is the result of an experiment conducted on MT-bench with a single RTX3090, using LLaMA2-chat 7B.
 
@@ -334,13 +331,22 @@ A heartfelt thank you to all our contributors.
 
 
 ## Reference
-For technical details and full experimental results, please check [the paper](https://arxiv.org/pdf/2401.15077.pdf).
+For technical details and full experimental results, please check [the paper of EAGLE](https://arxiv.org/pdf/2401.15077.pdf) and [the paper of EAGLE-2](https://arxiv.org/pdf/2406.16858).
 ```
 @inproceedings{li2024eagle, 
 	author = {Yuhui Li and Fangyun Wei and Chao Zhang and Hongyang Zhang}, 
 	title = {EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty}, 
 	booktitle = {International Conference on Machine Learning},
 	year = {2024}
+}
+@misc{li2024eagle2fasterinferencelanguage,
+      title={EAGLE-2: Faster Inference of Language Models with Dynamic Draft Trees}, 
+      author={Yuhui Li and Fangyun Wei and Chao Zhang and Hongyang Zhang},
+      year={2024},
+      eprint={2406.16858},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2406.16858}, 
 }
 ```
 
