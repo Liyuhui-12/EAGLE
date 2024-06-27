@@ -53,19 +53,20 @@ except:
     from utils import prepare_logits_processor
 
 import time
+
+
 class Timer:
-    def __init__(self,name):
+    def __init__(self, name):
         self.name = name
+
     def __enter__(self):
         torch.cuda.synchronize()
         self.start = time.perf_counter()
-
 
     def __exit__(self, exc_type, exc_value, traceback):
         torch.cuda.synchronize()
         elapsed = time.perf_counter() - self.start
         print(f'{self.name} took {elapsed} seconds')
-
 
 
 # Copied from transformers.models.bart.modeling_bart._make_causal_mask
@@ -239,9 +240,12 @@ class LlamaAttention(nn.Module):
     def _init_rope(self):
         if self.config.rope_scaling is None:
             if hasattr(self.config, "rope_theta"):
-                self.rotary_emb = LlamaRotaryEmbedding(self.head_dim, max_position_embeddings=self.max_position_embeddings,base=self.config.rope_theta)
+                self.rotary_emb = LlamaRotaryEmbedding(self.head_dim,
+                                                       max_position_embeddings=self.max_position_embeddings,
+                                                       base=self.config.rope_theta)
             else:
-                self.rotary_emb = LlamaRotaryEmbedding(self.head_dim, max_position_embeddings=self.max_position_embeddings)
+                self.rotary_emb = LlamaRotaryEmbedding(self.head_dim,
+                                                       max_position_embeddings=self.max_position_embeddings)
         else:
             scaling_type = self.config.rope_scaling["type"]
             scaling_factor = self.config.rope_scaling["factor"]
@@ -486,7 +490,7 @@ def len_list(x, n):
 
 
 class Model(nn.Module):
-    def __init__(self, config, load_emb=False, path=None, bias=True,total_tokens=63,depth=5,top_k=8,threshold=1.0):
+    def __init__(self, config, load_emb=False, path=None, bias=True, total_tokens=63, depth=5, top_k=8, threshold=1.0):
         super().__init__()
 
         self.gradient_checkpointing = True
@@ -516,7 +520,7 @@ class Model(nn.Module):
             self.embed_tokens.weight.data = tensor
 
         self.top_k = top_k
-        self.total_tokens = total_tokens-1
+        self.total_tokens = total_tokens - 1
         self.depth = depth
         self.threshold = math.log(threshold)
         # print("total_tokens",total_tokens)
@@ -669,25 +673,16 @@ class Model(nn.Module):
 
         return hidden_states
 
-
-
-
     def reset_kv(self):
         self.stable_kv = None
 
-
-
-
     @torch.no_grad()
-    def topK_genrate(self, hidden_states, input_ids, head,logits_processor):
+    def topK_genrate(self, hidden_states, input_ids, head, logits_processor):
 
         input_ids = input_ids.to(hidden_states.device)
         total_tokens = self.total_tokens
         depth = self.depth
         top_k = self.top_k
-
-
-
 
         sample_token = input_ids[:, -1]
 
@@ -695,14 +690,13 @@ class Model(nn.Module):
         parents_list = []
         ss_token = []
 
-
         input_ids = input_ids[:, 1:]
         input_ids = input_ids.to(hidden_states.device)
 
         len_posi = input_ids.shape[1]
         self.reset()
 
-        #with Timer("draft many"):
+        # with Timer("draft many"):
         if hasattr(self, "stable_kv") and self.stable_kv is not None:
             kv_len = self.stable_kv[0][0].shape[2]
             out_hidden, past_key_values = self(hidden_states, input_ids=input_ids[:, kv_len:],
@@ -714,37 +708,33 @@ class Model(nn.Module):
 
         last_headout = head(last_hidden)
 
-
         last_p = self.logsoftmax(last_headout)
         top = torch.topk(last_p, top_k, dim=-1)
         topk_index, topk_p = top.indices, top.values
         scores = topk_p[0]
         scores_list.append(scores[None])
-        parents_list.append(torch.zeros(1,dtype=torch.long,device=scores.device))
+        parents_list.append(torch.zeros(1, dtype=torch.long, device=scores.device))
         ss_token.append(topk_index)
         input_ids = topk_index
         input_hidden = last_hidden[None].repeat(1, top_k, 1)
         tree_mask = self.tree_mask_init
         topk_cs_index = torch.arange(top_k, device=self.embed_tokens.weight.device)
 
-        #4
+        # 4
         for i in range(depth):
-
             self.tree_mask = tree_mask
             position_ids = len_posi + self.position_ids
-            #with Timer("draft one"):
+            # with Timer("draft one"):
             out_hidden, past_key_values = self(input_hidden, input_ids=input_ids, past_key_values=past_key_values,
                                                position_ids=position_ids, use_cache=True)
             len_posi += 1
 
-
-            #with Timer("sort1"):
+            # with Timer("sort1"):
             bias1 = top_k if i > 0 else 0
             bias2 = max(0, i - 1)
-            bias=1 + top_k ** 2 * bias2 + bias1
+            bias = 1 + top_k ** 2 * bias2 + bias1
             parents = (topk_cs_index + bias)
             parents_list.append(parents)
-
 
             last_headout = head(out_hidden[0])
             last_p = self.logsoftmax(last_headout)
@@ -758,7 +748,6 @@ class Model(nn.Module):
             topk_cs_index, topk_cs_p = topk_cs.indices, topk_cs.values
             scores = topk_cs_p
 
-
             out_ids = topk_cs_index // top_k
             input_hidden = out_hidden[:, out_ids]
             # with Timer("2index"):
@@ -766,7 +755,7 @@ class Model(nn.Module):
             #     input_ids = topk_index[out_ids, in_ids][None]
             # with Timer("1index"):
             input_ids = topk_index.view(-1)[topk_cs_index][None]
-            #print(input_ids.equal(input_ids0))
+            # print(input_ids.equal(input_ids0))
 
             ss_token.append(topk_index)
             scores_list.append(cu_scores)
@@ -775,11 +764,10 @@ class Model(nn.Module):
             # if self.threshold < 0 and cu_scores.max() < self.threshold:
             #     break
 
-
         # del parents_list,scores_list,ss_token
         # return draft_tokens, mask_index,tree_mask,tree_position_ids
 
-        #with Timer("post"):
+        # with Timer("post"):
 
         scores_list = torch.cat(scores_list, dim=0).view(-1)
         ss_token_list = torch.cat(ss_token, dim=0).view(-1)
@@ -787,23 +775,20 @@ class Model(nn.Module):
         top_scores_index = top_scores.indices
         top_scores_index = torch.sort(top_scores_index).values
 
-
         draft_tokens = ss_token_list[top_scores_index]
         draft_tokens = torch.cat((sample_token, draft_tokens), dim=0)
 
-
-        draft_parents = torch.cat(parents_list, dim=0)[top_scores_index//top_k].long()
+        draft_parents = torch.cat(parents_list, dim=0)[top_scores_index // top_k].long()
         mask_index = torch.searchsorted(top_scores_index, draft_parents - 1, right=False)
-        #mask_index[(top_scores_index[mask_index]!=draft_parents - 1)]=-1
-        mask_index[draft_parents== 0]=-1
-        mask_index=mask_index+1
+        # mask_index[(top_scores_index[mask_index]!=draft_parents - 1)]=-1
+        mask_index[draft_parents == 0] = -1
+        mask_index = mask_index + 1
         mask_index_list = mask_index.tolist()
-        #with Timer("mask"):
+        # with Timer("mask"):
         tree_mask = torch.eye(total_tokens + 1).bool()
         tree_mask[:, 0] = True
         for i in range(total_tokens):
             tree_mask[i + 1].add_(tree_mask[mask_index_list[i]])
-
 
         # with Timer("mask1"):
         #     tree_mask0 = [[False for _ in range(total_tokens + 1)] for _ in range(total_tokens + 1)]
@@ -819,16 +804,14 @@ class Model(nn.Module):
         #     tree_mask0 = torch.tensor(tree_mask0, dtype=torch.bool)
         #
         # print(tree_mask0.equal(tree_mask))
-        tree_position_ids=torch.sum(tree_mask,dim=1)-1
+        tree_position_ids = torch.sum(tree_mask, dim=1) - 1
 
+        tree_mask = tree_mask.float()[None, None]
+        draft_tokens = draft_tokens[None]
 
-        tree_mask=tree_mask.float()[None,None]
-        draft_tokens=draft_tokens[None]
+        del parents_list, scores_list, ss_token, ss_token_list, draft_parents
 
-        del parents_list,scores_list,ss_token,ss_token_list,draft_parents
-
-
-        #with Timer("retrieve"):
+        # with Timer("retrieve"):
 
         max_depth = torch.max(tree_position_ids) + 1
         noleaf_index = torch.unique(mask_index).tolist()
@@ -839,39 +822,34 @@ class Model(nn.Module):
         retrieve_indices = retrieve_indices.tolist()
 
         rid = 0
-        position_ids_list=tree_position_ids.tolist()
-
-
+        position_ids_list = tree_position_ids.tolist()
 
         for i in range(total_tokens + 1):
             if i not in noleaf_index:
                 cid = i
-                depth=position_ids_list[i]
+                depth = position_ids_list[i]
                 for j in reversed(range(depth + 1)):
                     retrieve_indices[rid][j] = cid
                     cid = mask_index_list[cid - 1]
                 rid += 1
 
-
         if logits_processor is not None:
-            maxitem = total_tokens+5
+            maxitem = total_tokens + 5
+
             def custom_sort(lst):
                 # sort_keys=[len(list)]
                 sort_keys = []
                 for i in range(len(lst)):
                     sort_keys.append(lst[i] if lst[i] >= 0 else maxitem)
                 return sort_keys
+
             retrieve_indices = sorted(retrieve_indices, key=custom_sort)
 
-
-
-        retrieve_indices=torch.tensor(retrieve_indices,dtype=torch.long)
+        retrieve_indices = torch.tensor(retrieve_indices, dtype=torch.long)
         del mask_index, mask_index_list, noleaf_index, noleaf_num, leaf_num, max_depth, rid
         tree_position_ids = tree_position_ids.to(hidden_states.device)
 
-        return draft_tokens, retrieve_indices,tree_mask,tree_position_ids
-
-
+        return draft_tokens, retrieve_indices, tree_mask, tree_position_ids
 
     @torch.no_grad()
     def acc(self, data, head, max_length=5):

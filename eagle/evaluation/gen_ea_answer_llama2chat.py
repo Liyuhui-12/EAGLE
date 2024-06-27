@@ -101,7 +101,6 @@ def get_model_answers(
         total_token=args.total_token,
         depth=args.depth,
         top_k=args.top_k,
-        threshold=args.threshold,
         torch_dtype=torch.float16,
         low_cpu_mem_usage=True,
         # load_in_8bit=True,
@@ -321,25 +320,17 @@ if __name__ == "__main__":
         "--total-token",
         type=int,
         default=60,
-        help="The maximum number of new generated tokens.",
+        help="The total number of nodes in the draft tree",
     )
     parser.add_argument(
         "--depth",
         type=int,
         default=5,
-        help="The maximum number of new generated tokens.",
     )
     parser.add_argument(
         "--top-k",
         type=int,
         default=10,
-        help="The maximum number of new generated tokens.",
-    )
-    parser.add_argument(
-        "--threshold",
-        type=float,
-        default=0.1,
-        help="The maximum number of new generated tokens.",
     )
     parser.add_argument(
         "--num-choices",

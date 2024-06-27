@@ -31,6 +31,7 @@ class EaModel(nn.Module):
             depth,
             top_k,
             threshold,
+            ea_layer_state_dict
     ):
 
         super().__init__()
@@ -64,6 +65,7 @@ class EaModel(nn.Module):
 
         else:
             self.ea_layer.diff_device = False
+        self.ea_layer.load_state_dict(ea_layer_state_dict, strict=True)
         self.ea_layer.to(self.base_model.dtype).to(device)
         self.ea_layer.init_tree()
 
@@ -101,6 +103,11 @@ class EaModel(nn.Module):
         configpath=os.path.join(ea_model_path,"config.json")
         if not os.path.exists(configpath):
             configpath = hf_hub_download(ea_model_path, "config.json")
+        load_model_path=os.path.join(ea_model_path, "pytorch_model.bin")
+        if not os.path.exists(load_model_path):
+            load_model_path=hf_hub_download(ea_model_path, "pytorch_model.bin")
+        ea_layer_state_dict = torch.load(load_model_path,
+                                         map_location="cpu")
         model = cls(
             base_model,
             base_model_path,
@@ -109,13 +116,35 @@ class EaModel(nn.Module):
             depth,
             top_k,
             threshold,
+            ea_layer_state_dict
         )
-        load_model_path=os.path.join(ea_model_path, "pytorch_model.bin")
-        if not os.path.exists(load_model_path):
-            load_model_path=hf_hub_download(ea_model_path, "pytorch_model.bin")
-        ea_layer_state_dict = torch.load(load_model_path,
-                                         map_location=base_model.device)
-        model.ea_layer.load_state_dict(ea_layer_state_dict, strict=True)
+
+
+
+        if total_token==-1:
+            device = model.base_model.model.layers[0].self_attn.q_proj.weight.device
+            cans=[40,48,50,56,60]
+            x=[1,1.05,1.07,1.1,1.13]
+            times=[]
+
+            for i in range(len(cans)):
+                length = cans[i]
+                input_ids = torch.randint(0, model.config.vocab_size - 200, (1, length)).to(device)
+                torch.cuda.synchronize()
+                start_time = time.time()
+                for _ in range(20):
+                    torch.cuda.synchronize()
+                    with torch.no_grad():
+                        outputs = model.base_model(input_ids)
+                    torch.cuda.synchronize()
+                torch.cuda.synchronize()
+                end_time = time.time()
+                times.append((end_time - start_time) / x[i])
+            total_token=cans[times.index(min(times))]
+            model.ea_layer.total_tokens=total_token-1
+
+
+
 
         return model
 

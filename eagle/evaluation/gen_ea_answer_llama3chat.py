@@ -103,7 +103,6 @@ def get_model_answers(
         total_token=args.total_token,
         depth=args.depth,
         top_k=args.top_k,
-        threshold=args.threshold,
         torch_dtype=torch.float16,
         low_cpu_mem_usage=True,
         # load_in_8bit=True,
@@ -366,12 +365,7 @@ if __name__ == "__main__":
         default=10,
         help="The maximum number of new generated tokens.",
     )
-    parser.add_argument(
-        "--threshold",
-        type=float,
-        default=0.1,
-        help="The maximum number of new generated tokens.",
-    )
+
     parser.add_argument(
         "--num-choices",
         type=int,
