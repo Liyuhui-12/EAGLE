@@ -219,6 +219,13 @@ accelerate launch -m --mixed_precision=bf16 eagle.train.main --tmpdir [path of d
 ```
 *eagle/train* provides examples of configuration files.
 
+You can also use DeepSpeed for training.
+
+```bash
+cd eagle/train
+deepspeed main_deepspeed.py --deepspeed_config ds_config.json
+```
+
 ### Inference on custom models
 
 If the original LLM structure differs from LLaMA and Mixtral, you can utilize EAGLE in two ways.
