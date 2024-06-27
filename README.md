@@ -5,7 +5,8 @@
 <a href="https://arxiv.org/pdf/2406.16858"><b>Paper (EAGLE-2)</b></a> |
 <a href="https://sites.google.com/view/
 eagle-llm"><b>Blog</b></a> |
-<a href="https://9bb231f8c2d3810206.gradio.live/"><b>Demo</b></a> |
+<a href="https://sites.google.com/view/
+eagle-llm"><b>Demo</b></a> |
 </p>
 
 
@@ -63,9 +64,6 @@ Using EAGLE-2, the inference speed on 2 RTX 3060 GPUs can be faster than vanilla
 
 **2024.1.17**: We now support [Mixtral-8x7B-Instruct](https://huggingface.co/mistralai/Mixtral-8x7B-Instruct-v0.1).
 
-**2024.1.17**: We have integrated [gpt-fast](https://github.com/pytorch-labs/gpt-fast) into EAGLE, [further accelerating](https://github.com/SafeAILab/EAGLE/tree/eaglefast) the generation speed.
-
-**2024.1.15**: We now support [batch size > 1](#batch-size--1) generation.
 
 **2023.12.8**: EAGLE v1.0 is released.
 
@@ -73,13 +71,11 @@ Using EAGLE-2, the inference speed on 2 RTX 3060 GPUs can be faster than vanilla
 
 ## Todo
 - [x] Support non-greedy inference (provably maintaining text distribution).
-- [x] Support bs > 1 (EAGLE-1).
-- [x] Support gpt-fast (EAGLE-1).
 - [x] Support more LLMs such as Mixtral 8x7B.
 - [x] Support LLaMA-3.
 - [ ] Support Qwen-2.
 
-## For using EAGLE-1, please switch to the v1 branch.
+## The default main branch is the implementation of EAGLE-2. For using EAGLE-1, please switch to the v1 branch.
 
 ## Contents
 
@@ -88,16 +84,12 @@ Using EAGLE-2, the inference speed on 2 RTX 3060 GPUs can be faster than vanilla
 - [Inference](#inference)
   - [With UI](#with-ui)
   - [With Code](#with-code)
-  - [Batch size > 1](#batch-size--1)
 - [Train](#train)
   - [Generate Train Data](#generate-train-data)
   - [Train the Auto-regression Head](#train-the-auto-regression-head)
   - [Inference on custom models](#inference-on-custom-models)
 - [Evaluation](#evaluation)
-- [With gpt-fast](#with-gpt-fast)
-  - [Setup](#setup)
-  - [Quantizing Weights](quantizing-weights)
-  - [Modifying Path](modifying-path)
+
 
 ## Setup & Installation
 
@@ -162,50 +154,6 @@ output=model.tokenizer.decode(output_ids[0])
 
 **_Note: Vicuna, LLaMA2-Chat, and LLaMA3-Instruct are both chat models. You need to use the correct chat template, otherwise it will cause abnormal output from the model and affect the performance of EAGLE._**
 
-### Batch size > 1 (Currently, only EAGLE-1)
-
-Here is an example. Note that left padding is needed.
-```python
-from eagle.modelbsne1.ea_model import EaModel
-from fastchat.model import get_conversation_template
-
-model = EaModel.from_pretrained(
-    base_model_path=base_model_path,
-    ea_model_path=EAGLE_model_path,
-    torch_dtype=torch.float16,
-    low_cpu_mem_usage=True,
-    device_map="auto"
-)
-# left padding
-model.eval()
-model.tokenizer.padding_side = "left"
-model.tokenizer.pad_token = model.tokenizer.eos_token
-model.config.pad_token_id = model.config.eos_token_id
-
-sys_p = "You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information."
-
-your_message="Compose an engaging travel blog post about a recent trip to Hawaii, highlighting cultural experiences and must-see attractions."
-conv = get_conversation_template("llama-2-chat")
-conv.system_message = sys_p
-conv.append_message(conv.roles[0], your_message)
-conv.append_message(conv.roles[1], None)
-prompt1 = conv.get_prompt()+" "
-
-your_message="Hello"
-conv = get_conversation_template("llama-2-chat")
-conv.system_message = sys_p
-conv.append_message(conv.roles[0], your_message)
-conv.append_message(conv.roles[1], None)
-prompt2 = conv.get_prompt()+" "
-
-input_s=model.tokenizer([prompt1,prompt2],return_tensors="pt",padding=True).to("cuda")
-output_ids=model.eagenerate(input_s.input_ids,input_s.attention_mask,temperature=0.0,max_new_tokens=512,top_k=15)
-output=model.tokenizer.batch_decode(output_ids)
-print(output)
-
-# vanilla auto-regression
-# output_ids, new_token, idx=model.naivegenerate(input_s.input_ids,input_s.attention_mask,temperature=0.0,max_new_tokens=512,top_k=15,log=True)
-```
 
 
 ## Train
@@ -231,35 +179,7 @@ deepspeed main_deepspeed.py --deepspeed_config ds_config.json
 
 ### Inference on custom models
 
-If the original LLM structure differs from LLaMA and Mixtral, you can utilize EAGLE in two ways.
-
-#### 1. Using the generic modeling_eagle.py (Currently, only EAGLE-1)
-
-This approach directly encapsulates the native Transformers LLM. Here is an example. **Note: transformers version should be higher than 4.36.**
-
-```python
-from eagle.modeling_eagle import EAGLE
-from transformers import AutoModelForCausalLM,AutoTokenizer
-
-tokenizer=AutoTokenizer.from_pretrained(base_model_path)
-model=AutoModelForCausalLM.from_pretrained("base_model_path",torch_dtype=torch.float16,device_map="auto",)
-# for bs>1, the padding side should be right
-if bs>1:
-    tokenizer.padding_side = "left"
-    tokenizer.pad_token = tokenizer.eos_token
-    model.config.pad_token_id = model.config.eos_token_id
-
-text=prompt1
-# text=[prompt1,prompt2]
-inputs = tokenizer(text, return_tensors="pt",padding=True)
-
-eagle=EAGLE(model,eagle_path)
-outs=eagle.generate(**inputs, max_new_tokens=200,temperature=0.0)
-output=tokenizer.decode(outs)
-# output=tokenizer.batch_decode(outs)
-```
-
-#### 2. Modifying the code of the model
+If the original LLM structure differs from LLaMA and Mixtral, you can utilize EAGLE as follows:
 
 Copy the modeling_basemodelname.py from the Transformers library and proceed to make modifications to leverage the pre-allocated kv_cache for enhanced speed in the base model. You can refer to model/modeling_llama_kv.py for guidance, where places that require modifications are annotated with # [MODIFIED]. These modifications are minimal.
 
@@ -279,59 +199,6 @@ python -m eagle.evaluation.gen_baseline_answer_vicuna\
 		 --base-model-path [path of the original model]\
 ```
 The above two commands will each generate a .jsonl file that records the generation results and wall time. Then, you can use evaluation/speed.py to calculate the ratio of speeds.
-
-## With gpt-fast (Currently, only EAGLE-1)
-
-GPT-Fast primarily accelerates generation through quantization and compilation, which we have integrated into EAGLE. Here is the result of an experiment conducted on MT-bench with a single RTX3090, using LLaMA2-chat 7B.
-
-| Precision 	    | fp16      | int4      |
-|-------------------|-----------|-----------|
-| vanilla          | 24.5 tokens/s     | N/A     |
-| gpt-fast          | 55.1 tokens/s      | 106.9 tokens/s     |
-| EAGLE+gpt-fast    | 100.2 tokens/s    | 160.4 tokens/s    |
-
-
-
-<p align="center">
-  <img src="./figs/eaglefast.gif" alt="demogif">
-</p>
-
-_Inference is conducted on a single RTX3090 GPU at int4 precision using the LLaMA2-chat 7B model. No additional training required._
-
-In EAGLE, using gpt-fast only requires three steps: setting up the environment, quantizing weights, and modifying the model path.
-
-### Setup
-
-Switch to the *eaglefast* branch.
-
-```bash
-git clone https://github.com/SafeAILab/EAGLE.git
-git checkout eaglefast
-```
-
-Install the Preview (Nightly) version of PyTorch with CUDA 12.1, do not use "pip install torch" as it installs the Stable version, which lacks some of the new features used by gpt-fast. 
-
-_This is a requirement for gpt-fast, whereas other branches of eagle can use the Stable version of PyTorch._
-
-### Quantizing Weights
-
-Convert Huggingface weights to the format required by gpt-fast.
-
-```bash
-python convert/convert_hf_checkpoint.py --checkpoint_dir path_of_base_model
-python convert/convert_hf_checkpoint_EAGLE.py --checkpoint_dir path_of_eagle
-```
-
-Quantize weights.
-
-```bash
-python -m model.quantize_llama --checkpoint_path path_of_base_model/model.pth
-python -m model.quantize_EAGLE --checkpoint_path path_of_eagle/model.pth
-```
-
-### Modifying Path
-
-When specifying the model weights (including the base model and EAGLE), change "path" to "path/model_int4.g32.pth".
 
 ## 🌟 Our Contributors
 
