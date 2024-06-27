@@ -5,6 +5,7 @@
 <a href="https://arxiv.org/pdf/2406.16858"><b>Paper (EAGLE-2)</b></a> |
 <a href="https://sites.google.com/view/
 eagle-llm"><b>Blog</b></a> |
+<a href="https://9bb231f8c2d3810206.gradio.live/"><b>Demo</b></a> |
 </p>
 
 
@@ -30,7 +31,7 @@ eagle-llm"><b>Blog</b></a> |
   <img src="./figs/eagle2_t0.jpg" alt="benchmark" width="790">
 </p>
 
-EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) is a new baseline for fast decoding of Large Language Models (LLMs) with provable performance maintenance. This approach involves extrapolating the second-top-layer contextual feature vectors of LLMs, enabling a significant boost in generation efficiency. EAGLE-2 uses the confidence scores from the draft model to approximate acceptance rates, dynamically adjusting the draft tree structure, which further enhances performance.
+EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) is a new baseline for fast decoding of Large Language Models (LLMs) with provable performance maintenance. This approach involves extrapolating the second-top-layer contextual feature vectors of LLMs, enabling a significant boost in generation efficiency. 
 
 - EAGLE is:
 	- certified by the <a href="https://github.com/hemingkx/Spec-Bench/blob/main/Leaderboard.md"><b>third-party</b></a> evaluation as the **fastest** speculative method so far. 
@@ -41,6 +42,8 @@ EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) is a new b
   	- provably maintaining the consistency with vanilla decoding in the distribution of generated texts.
   	- trainable (within 1-2 days) and testable on 8x RTX 3090 GPUs. So even the GPU poor can afford it.
 	- combinable with other parallelled techniques such as vLLM, DeepSpeed, Mamba, FlashAttention, quantization, and hardware optimization.
+
+EAGLE-2 uses the confidence scores from the draft model to approximate acceptance rates, dynamically adjusting the draft tree structure, which further enhances performance.
 
 - EAGLE-2 is:
   - **4x** faster than vanilla decoding (13B).
